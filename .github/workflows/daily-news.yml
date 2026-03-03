@@ -16,7 +16,7 @@ jobs:
       - name: Checkout Target Repo (Blog)
         uses: actions/checkout@v4
         with:
-          repository: Hongyoosung/Hongyoosung.github.io
+          repository: yoosunghong/yoosunghong.github.io
           token: ${{ secrets.GH_PAT }}
           path: targetrepo
       
