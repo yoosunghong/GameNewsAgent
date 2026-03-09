@@ -137,34 +137,41 @@ def main():
     summaries = []
     for article in selected_articles:
         content = extract_webpage_text(article['link'])
-        step2_prompt = f"""Summarize this for a Senior Engineer. 
-        Focus: Core Mechanism, Performance Impact, Practical Application.
-        Title: {article['title']}
-        Content: {content if content else 'N/A'}
-        Format:
-        ### [Title Without Tags]({article['link']})
-        * **Core Content:** ...
-        * **Technical Significance:** ...
-        * **Practical Application:** ...
+        # 변경점: 제목에서 링크를 빼고, 별도의 Link 섹션을 명시함
+        step2_prompt = f"""Summarize this technical article for a Senior Engineer.
+        Strictly follow this format:
+        
+        ### {article['title']}
+        **Link:** {article['link']}
+        
+        * **Core Content:** (2-3 sentences about the technical mechanism)
+        * **Technical Significance:** (Why this matters for engineering)
+        * **Practical Application:** (How to use this in real-world projects)
+
+        Content to summarize:
+        {content if content else 'N/A'}
         """
         summaries.append(call_gemini(step2_prompt))
 
-    print(f"🚀 [3/5] 영문 마크다운 생성 (도입부 제거 및 서식 적용)...")
-    # 구분선(---)으로 기사 결합
+    print(f"🚀 [3/5] 영문 마크다운 생성...")
     combined_summaries = "\n\n---\n\n".join(summaries)
     
+    # 변경점: 프론트매터가 '문서 전체에서 딱 한 번'만 나와야 함을 강조
     step3_en_prompt = f"""
-    Write a technical blog post. 
-    - Do NOT include any introductory or concluding remarks.
-    - Start immediately with the first article.
-    - The 'title' in frontmatter must be technical and specific (No generic prefixes like 'Daily Update' or 'Tech Unpacked').
+    You are a professional technical blogger. Combine the provided summaries into a single cohesive blog post.
+    
+    [STRICT RULES]
+    1. The Markdown Frontmatter (the section between ---) MUST appear ONLY ONCE at the very top of the document.
+    2. Do NOT repeat the frontmatter for each article.
+    3. Start the content immediately after the second --- of the frontmatter.
+    4. Maintain the 'Link:' section for every article as provided.
     
     [Format]
     ---
-    title: "[Technical Title Based on Content]"
+    title: "[Single Technical Title for the Entire Post]"
     date: {TODAY.strftime("%Y-%m-%dT09:00:00+09:00")}
     draft: false
-    description: "[Concise 2-sentence tech summary]"
+    description: "[Concise 2-sentence summary of all 5 topics]"
     tags: ["Tech", "AI", "GameDev"]
     categories: ["Tech"]
     ---
@@ -172,6 +179,22 @@ def main():
     {combined_summaries}
     """
     final_markdown_en = clean_generated_text(call_gemini(step3_en_prompt))
+
+    print(f"🚀 [4/5] 한글 버전 번역...")
+    # 변경점: 링크 주소는 번역하지 말고 그대로 유지하도록 지시
+    step4_ko_prompt = f"""
+    Translate the following technical blog post into Korean.
+    
+    [Rules]
+    1. Translate the 'title' and 'description' in the frontmatter.
+    2. Keep technical terms like 'Rendering', 'LLM', 'Pipeline' in English if they are standard industry terms.
+    3. IMPORTANT: Never translate or modify the URLs in the '**Link:**' section.
+    4. Ensure the Frontmatter structure (---) remains intact at the top.
+    
+    [English Post]
+    {final_markdown_en}
+    """
+    final_markdown_ko = clean_generated_text(call_gemini(step4_ko_prompt))
 
     print(f"🚀 [4/5] 한글 버전 번역 (제목 포함 전문 번역)...")
     step4_ko_prompt = f"""
